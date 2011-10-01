@@ -1,29 +1,18 @@
 <?php
-require_once 'Zend/Uri/Http.php';
+namespace Diggin\Uri;
+
+use Zend\Uri\Http;
 
 /**
  *
  * @see http://code.google.com/intl/ja/web/ajaxcrawling/docs/specification.html
  * @see http://subtech.g.hatena.ne.jp/mala/20101018/1287419036
  */
-class Diggin_Uri_HttpCrawlableHash extends Zend_Uri_Http
+class HttpCrawlableHash extends Http
 {
     const CONVERT_QUERY = 'query';
     const CONVERT_HASH  = 'hash';
     const ESCAPED_FRAGMENT = '_escaped_fragment_';
-
-    public function __construct($scheme, $schemeSpecific = '')
-    {
-        parent::__construct($scheme, $schemeSpecific);
-        
-        if (isset(self::$_config['convert_always'])) {
-            if (self::CONVERT_QUERY === self::$_config['convert_always']) {
-                $this->filterFragmentToQuery();
-            } else if (self::CONVERT_HASH === self::$_config['convert_always']) {
-                $this->filterQueryToFragment();
-            }
-        }
-    }
 
     public function hasCrawlableHash()
     {
@@ -62,8 +51,10 @@ class Diggin_Uri_HttpCrawlableHash extends Zend_Uri_Http
             $fragment = $this->getFragment();
             $fragment = preg_replace('/^!/', '', $fragment);
         
-            $query = self::ESCAPED_FRAGMENT.'='.preg_replace_callback('/(?:[\x00-\x20][\x23][\x25-\x26][\x2B][\x7F-\xFF])/', 
-                                       create_function('$b', 'return rawurlencode($b[0]);'), $fragment); 
+            $query = self::ESCAPED_FRAGMENT.'='
+                .preg_replace_callback('/(?:[\x00-\x20][\x23][\x25-\x26][\x2B][\x7F-\xFF])/', 
+                                       //create_function('$b', 'return rawurlencode($b[0]);'), $fragment); 
+                                       function ($b){return rawurlencode($b[0]);}, $fragment); 
 
             if ($this->getQuery()) {
                 $old = $this->getQuery();

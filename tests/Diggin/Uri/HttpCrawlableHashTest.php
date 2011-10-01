@@ -1,88 +1,65 @@
 <?php
+namespace DigginTests\Uri;
 
-require_once 'PHPUnit/Framework.php';
+use Zend\Uri\UriFactory,
+    Diggin\Uri\HttpCrawlableHash;
 
-require_once 'Diggin/Uri/HttpCrawlableHash.php';
-
-class Diggin_Uri_HttpCrawlableHashTest extends PHPUnit_Framework_TestCase
+class HttpCrawlableHashTest extends \PHPUnit_Framework_TestCase
 {
-    protected function setUp()
+    public function testFiltering()
     {
-        Zend_Uri::setConfig(array('allow_unwise' => true));
-    }
-
-    protected function tearDown()
-    {
-        Zend_Uri::setConfig(array('convert_always' => false));
-    }
-
-    public function testBasic()
-    {
-
-       $uri = Zend_Uri::factory('http://example.com/?_escaped_fragment_=key1=value1%26key2=value2', 'Diggin_Uri_HttpCrawlableHash');
-       $this->assertEquals((string) $uri->getQueryToFragment(),
+       $uri = new HttpCrawlableHash('http://example.com/?_escaped_fragment_=key1=value1%26key2=value2');
+       $uri->filterQueryToFragment();
+       $this->assertEquals($uri->toString(),
                            "http://example.com/#!key1=value1&key2=value2");
 
-       $uri = Zend_Uri::factory('http://example.com/?user=a&q=b&_escaped_fragment_=key1=value1%26key2=value2', 'Diggin_Uri_HttpCrawlableHash');
-       $this->assertEquals((string) $uri->getQueryToFragment(),
+       $uri = new HttpCrawlableHash('http://example.com/?user=a&q=b&_escaped_fragment_=key1=value1%26key2=value2');
+       $uri->filterQueryToFragment();
+       $this->assertEquals($uri->toString(),
                            "http://example.com/?user=a&q=b#!key1=value1&key2=value2");
 
-
        // Mapping from #! to _escaped_fragment_ format
-       $uri2 = Zend_Uri::factory('http://example.com/#!key1=value1&key2=value2', 'Diggin_Uri_HttpCrawlableHash');
-       $this->assertEquals((string) $uri2->getFragmentToQuery(),
+       $uri2 = new HttpCrawlableHash('http://example.com/#!key1=value1&key2=value2');
+       $uri2->filterFragmentToQuery();
+       $this->assertEquals($uri2->toString(),
                            "http://example.com/?_escaped_fragment_=key1=value1%26key2=value2");
 
-       $uri2 = Zend_Uri::factory('http://example.com/path?old_query#!key1=value1&key2=value2', 'Diggin_Uri_HttpCrawlableHash');
-       $this->assertEquals((string) $uri2->getFragmentToQuery(),
+       $uri2 = new HttpCrawlableHash('http://example.com/path?old_query#!key1=value1&key2=value2');
+       $uri2->filterFragmentToQuery();
+       $this->assertEquals($uri2->toString(),
                            "http://example.com/path?old_query&_escaped_fragment_=key1=value1%26key2=value2");
 
-       $uri2 = Zend_Uri::factory('http://example.com/path?_escaped_fragment_=hoge#!key1=value1&key2=value2', 'Diggin_Uri_HttpCrawlableHash');
-       $this->assertEquals((string) $uri2->getFragmentToQuery(),
+       $uri2 = new HttpCrawlableHash('http://example.com/path?_escaped_fragment_=hoge#!key1=value1&key2=value2');
+       $uri2->filterFragmentToQuery();
+       $this->assertEquals($uri2->toString(),
                            "http://example.com/path?_escaped_fragment_=key1=value1%26key2=value2");
     }
 
-    public function testConvertAlways()
+    public function testClonedAndFiltering()
     {
-        Zend_Uri::setConfig(array('convert_always' => 'query'));
-        $uri = Zend_Uri::factory('http://example.com/#!key1=value1&key2=value2', 'Diggin_Uri_HttpCrawlableHash');
-        $this->assertEquals((string)$uri, 'http://example.com/?_escaped_fragment_=key1=value1%26key2=value2');
+       $uri = new HttpCrawlableHash($origin_uri = 'http://example.com/?_escaped_fragment_=key1=value1%26key2=value2');
+       $newuri = $uri->getQueryToFragment();
 
-        Zend_Uri::setConfig(array('convert_always' => false));
-        $uri = Zend_Uri::factory($u = 'http://example.com/#!key1=value1&key2=value2', 'Diggin_Uri_HttpCrawlableHash');
-        $this->assertEquals((string)$uri, $u);
+       $this->assertNotEquals(spl_object_hash($newuri), spl_object_hash($uri));
 
+       $this->assertEquals($uri->toString(),
+                           $origin_uri);
 
-        Zend_Uri::setConfig(array('convert_always' => 'hash'));
-        $uri = Zend_Uri::factory('http://example.com/?_escaped_fragment_=key1=value1%26key2=value2', 'Diggin_Uri_HttpCrawlableHash');
-        $this->assertEquals((string)$uri, 'http://example.com/#!key1=value1&key2=value2');
+       $newuri->filterQueryToFragment();
+       $this->assertEquals($newuri->toString(),
+                           "http://example.com/#!key1=value1&key2=value2");
+    
+       //
+       $uri2 = new HttpCrawlableHash($origin_uri2 = 'http://example.com/#!key1=value1&key2=value2');
+       $newuri2 = $uri2->getFragmentToQuery();
 
-        Zend_Uri::setConfig(array('convert_always' => false));
-        $uri = Zend_Uri::factory($u = 'http://example.com/?_escaped_fragment_=key1=value1%26key2=value2', 'Diggin_Uri_HttpCrawlableHash');
-        $this->assertEquals((string)$uri, $u);
+       $this->assertNotEquals(spl_object_hash($newuri2), spl_object_hash($uri2));
+
+       $this->assertEquals($uri2->toString(),
+                           $origin_uri2);
+
+       $uri2->filterFragmentToQuery();
+       $this->assertEquals($uri2->toString(),
+                           "http://example.com/?_escaped_fragment_=key1=value1%26key2=value2");
     }
 }
-
-
-
-/** memo
-Zend_Uri::setConfig(array('allow_unwise' => true));
-
-$url = 'http://twitter.com/#!/bulkneets\x00';
-//$url = "http://twitter.com/#!/bulkneets\x00";
-
-$uri = Zend_Uri::factory($url, 'Diggin_Uri_HttpCrawlableHash');
-
-var_dump($uri->hasCrawlableHash());
-var_dump((string)$uri->getFragmentToQuery());
-
-Zend_Uri::setConfig(array('convert_always' => 'query'));
-var_dump((string)Zend_Uri::factory($url, 'Diggin_Uri_HttpCrawlableHash'));
-
-
-var_dump((string)Zend_Uri::factory("http://example.com/#!key1=value1&key2=value2", 'Diggin_Uri_HttpCrawlableHash'));
-
-
-//var_dump(preg_replace_callback('/(?:[\x00-\x20])/', create_function('$b', 'return rawurlencode($b[0]);'), "aa\x00")); 
-//var_dump(preg_replace_callback('/(?:[^\x00-\x20])/', create_function('$b', 'return rawurlencode($b[0]);'), "aa\x00"));
-*/
