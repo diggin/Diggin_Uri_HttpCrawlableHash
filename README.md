@@ -1,4 +1,4 @@
-Diggin_Uri_HttpCrawlabelHash
+Diggin_Uri_HttpCrawlableHash
 ============================
 
 convert ajax uri to crawlable
